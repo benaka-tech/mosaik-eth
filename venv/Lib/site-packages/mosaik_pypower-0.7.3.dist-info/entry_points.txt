@@ -1,0 +1,3 @@
+[console_scripts]
+mosaik-pypower = mosaik_pypower.mosaik:main
+

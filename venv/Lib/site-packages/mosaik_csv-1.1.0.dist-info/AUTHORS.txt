@@ -1,0 +1,4 @@
+Authors
+=======
+
+The mosaik CSV reader was created by Stefan Scherfke.

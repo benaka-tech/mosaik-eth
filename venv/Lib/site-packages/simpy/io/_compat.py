@@ -1,0 +1,12 @@
+from simpy._compat import PY2
+
+if PY2:
+    # Dummy exceptions for Python 2 compatability.
+    class BlockingIOError(Exception):
+        pass
+
+    class ConnectionError(Exception):
+        pass
+
+    class ConnectionResetError(Exception):
+        pass

@@ -1,0 +1,3 @@
+[console_scripts]
+mosaik-householdsim = householdsim.mosaik:main
+

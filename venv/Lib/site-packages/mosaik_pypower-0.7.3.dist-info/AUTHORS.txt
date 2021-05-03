@@ -1,0 +1,6 @@
+Authors
+=======
+
+The mosaik-pypower is developed by Stefan Scherfke.
+André El-Ama joined the team in July 2017.
+

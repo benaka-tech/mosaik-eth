@@ -1,0 +1,112 @@
+Metadata-Version: 2.1
+Name: mosaik-householdsim
+Version: 2.0.3
+Summary: A simple simulator for household profiles.
+Home-page: https://bitbucket.org/mosaik/mosaik-householdsim
+Author: Stefan Scherfke
+Author-email: mosaik@offis.de
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Scientific/Engineering
+Requires-Dist: arrow (>=0.9.0)
+Requires-Dist: mosaik-api (>=2.0)
+
+HouseholdSim
+============
+
+This is pseudo simulator to serve residual load profiles to mosaik.
+
+
+Installation
+------------
+
+::
+
+    $ pip install mosaik-householdsim
+
+Tests
+-----
+
+You can run the tests with::
+
+    $ git clone https://bitbucket.org/mosaik/mosaik-householdsim
+    $ cd mosaik-householdsim
+    $ pip install -r requirements.txt
+    $ pip install -e .
+    $ py.test
+    $ tox
+
+
+Documentation
+-------------
+
+This simulator consists of a a *model* (``householdsim/model.py``) and the
+mosaik API implemenation (``householdsim/mosaik.py``).
+
+The model processes the data from a NumPy *\*.npz* file (see
+``householdsim/test/test_model.py`` for an example of its layout). Basically,
+the file contains a number of load profiles for a given period of time. It
+also contains *ID lists* that describe which load profile belongs to which
+node ID in a power grid. The first entry in an ID list relates to the first
+entry of the profiles list, the second entry in the ID list to the second
+load profile and so on. If the number of entires in the ID list is larger than
+the number of load profiles, we start again with the first load profile.
+
+Internally, the model works with minute. Since mosaik is based on seconds,
+the mosaik API implementation converts between them.
+
+Usually, residual load profiles have a resolution of 15 minutes. It is no
+problem for this simulator to step in 1 minute steps, though.
+
+
+Changelog
+=========
+
+2.0.3 – 2019-09-27
+------------------
+
+- [FIX] Fixed incompatibility with new arrow version.
+- [FIX] Fixed time offset bug.
+
+
+2.0.2 – 2014-09-22
+------------------
+
+- [CHANGE] Updated to mosaik-api 2.0.
+
+
+2.0.1 – 2014-06-26
+------------------
+
+- [CHANGE] Adopted latest changes of the mosaik low-level API.
+
+
+2.0 – 2014-03-26
+----------------
+
+- Updated API implementation for mosaik2.
+
+
+1.0 – 2014-01-30
+----------------
+
+- Initial release.
+
+
+Authors
+=======
+
+The household simulator was created by Stefan Scherfke and Ontje Lünsdorf.
+
+

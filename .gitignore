@@ -1,0 +1,13 @@
+*.egg-info/
+*.pyc
+*.ropeproject
+*~
+.DS_Store
+.coverage
+MANIFEST
+dist/*
+docs/_build/*
+htmlcov/*
+*.ipynb_checkpoints/
+*.hdf5
+ethereum/build/contracts/*

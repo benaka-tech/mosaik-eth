@@ -1,0 +1,346 @@
+Metadata-Version: 2.1
+Name: mosaik
+Version: 2.6.0
+Summary: Mosaik is a flexible Smart-Grid co-simulation framework.
+Home-page: https://mosaik.offis.de
+Author: Stefan Scherfke
+Author-email: mosaik@offis.de
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: Natural Language :: English
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Dist: networkx (>=2.0)
+Requires-Dist: mosaik-api (>=2.3)
+Requires-Dist: simpy (<4.0.0,>=3.0.10)
+Requires-Dist: simpy.io (>=0.2.3)
+
+Mosaik
+======
+
+Mosaik is a simulation compositor for Smart Grid simulations.
+
+It lets you re-use existing simulators and couple them to simulate large-scale
+Smart Grid scenarios. Mosaik offers powerful mechanisms to specify and compose
+these scenarios.
+
+Version: 2.6.0
+
+License: LGPL
+
+Example
+-------
+
+A simple demo scenario with mosaik::
+
+   >>> import mosaik
+   >>>
+   >>> sim_config = {
+   ...     'ExampleSim': {'python': 'example_sim.mosaik:ExampleSim'},
+   ... }
+   >>>
+   >>> def create_scenario(world):
+   ...     simulator_1 = world.start('ExampleSim')
+   ...     simulator_2 = world.start('ExampleSim')
+   ...
+   ...     a_set = [simulator_1.A(init_val=0) for i in range(3)]
+   ...     b_set = simulator_2.B.create(2, init_val=0)
+   ...
+   ...     for i, j in zip(a_set, b_set):
+   ...         world.connect(i, j, ('val_out', 'val_in'))
+   >>>
+   >>> world = mosaik.World(sim_config)
+   >>> create_scenario(world)
+   >>> world.run(until=2)
+   Progress: 25.00%
+   Progress: 50.00%
+   Progress: 75.00%
+   Progress: 100.00%
+
+
+Installation
+------------
+
+Mosaik requires Python >= 3.4. Use `pip`__ to install it, preferably into
+a `virtualenv`__::
+
+    $ pip install mosaik
+
+__ http://pip.readthedocs.org/en/latest/installing.html
+__ http://virtualenv.readthedocs.org/en/latest/
+
+Documentation, Source Code and Issues
+-------------------------------------
+
+The documentation is available at https://mosaik.readthedocs.io.
+
+Please report bugs and ideas for improvement to our `issue tracker`__.
+
+__ https://bitbucket.org/mosaik/mosaik/issues
+
+
+Changelog
+=========
+
+2.6.0 - 2020-05-08
+------------------
+
+- [NEW] The print of the simulation progress is now optional and can be disabled via a flag
+  world.run(END, print_progress=False).
+- [NEW] Additional starters can now be added via external packages (the standard ones are
+  'python', 'cmd', and 'connect').
+
+2.5.3 - 2020-04-30
+------------------
+
+- [FIX] Constrain simpy version to <4.0.0 due to simpy.io incompatibility
+- [CHANGE] Updated Odysseus tutorial
+- [CHANGE] Eliminated shifted_cache which reduces memory consumption
+
+2.5.2 - 2019-11-01
+------------------
+
+- [NEW] Special characters are now allowed in path names
+- [NEW] Compatible to the new versions of networkx
+- [CHANGE] python 3.6, 3.7 and 3.8 are currently supported, python 3.4 and 3.5 not anymore.
+- [FIX] Various minor internal changes
+- [FIX] Various documentation updates and fixes
+
+2.5.1 - 2018-11-29
+------------------
+
+- [NEW] When calling the world.start() command for a simulator, users can now set a predefined
+  value for the posix flag (e.g. True) to prevent automatic detection of the operating system.
+  This facilitates the creation of some co-simulation cases across OS (e.g. Windows and Linux).
+
+2.5.0 - 2018-09-05
+------------------
+
+- [NEW] Connection option "time_shifted" added as alternative to async_requests. This will
+  make creating cyclic data dependencies between simulators more usable since usage of
+  set_data with an API implementation will no longer be needed.
+
+2.4.0 - 2017-12-06
+------------------
+
+- [NEW] Compatible to the new versions of networkx, simpy and simpy.io
+- [CHANGE] python 3.4, 3.5 and 3.6 are currently supported python 3.3 is no longer supported
+- [FIX] Various bug fixes
+
+2.3.0 - 2016-04-26
+------------------
+
+- [NEW] Allow passing environment vars to sup processes
+- [FIX] Fixed a bug in the version validation which raised an error when using
+  a floating point for the version
+
+2.2.0 - 2016-02-15
+------------------
+
+- [NEW] API version 2.2: Added an optional "setup_done()" method.
+
+- [CHANGE] API version validation: The API version is no longer an integer but
+  a "major.minor" string.  The *major* part has to match with mosaik's major
+  version. The *minor* part may be lower or equal to mosaik's minor version.
+
+- [FIX] Various minor fixes and stability improvements.
+
+- [FIX] Various documentation updates and fixes.
+
+2.1.2 – 2014-10-29
+------------------
+
+- [FIX] ``World.shutdown()`` now checks if the socket still exists before
+  attempting to close it.
+
+- [FIX] Fixed a bug that made the last extra method of a simulator shadow all
+  previous ones.
+
+2.1.1 – 2014-10-28
+------------------
+
+- [NEW] ``World.run()`` now prints a warning if you forget to connect
+  a simulator's entities.
+- [FIX] Fixed some problems with the data-flow cache.
+
+2.1 – 2014-10-24
+----------------
+
+- [NEW] Mosaik can now perform real-time simulations. Before, this
+  functionality needed to be implemented by simulators. Now it’s just
+  ``World.run(until=x, rt_factor=y)``, where ``rt_factor`` defines the
+  simulation speed relative to the wall-clock time (`issue #24`).
+
+- [NEW] Simulators can now expose extra methods via their API that can be
+  called from a mosaik scenario. This allows you to, e.g., store static data in
+  a data base. These extra API methods need to be specified in the simulator’s
+  meta data (`issue #26`_).
+
+- [NEW] ``util.connect_many_to_one()`` helper function.
+
+- [NEW] More and better documentation:
+
+  - Tutorial for integrating simulators, control strategies and for creating
+    scenarios.
+
+  - Sim API description
+
+  - Scenario API description
+
+  - Sim Manager documentation
+
+  - Scheduler documentation
+
+  - Discussion of design decisions
+
+  - Logo, colors, CI
+
+- [NEW] Added ``util.sync_call()`` which eases calling proxied methods of
+  a simulator synchronously.
+
+- [CHANGE] The *rel* attribute in the entity description returned by *create()*
+  is now optional.
+
+- [CHANGE] Moved proxied methods from ``SimProxy`` to ``SimProxy.proxy`` in
+  order to avoid potential name clashes with other attributes.
+
+- [CHANGE] Check a simulator’s models and extra API methods for potential name
+  clashes with the built-in API methods.
+
+- [CHANGE] The argument *execution_graph* of ``World`` was renamed to *debug*.
+  The execution graph now also stores the time after a simulation step (in
+  addition to the time before the step).
+
+- [FIX] `issue #22`_: The asynchronous requests *get_data()* and *set_data()*
+  now check if the ``async_requests`` flag was set in ``World.connect()``.
+
+- [FIX] `issue #23`_: *finalize()* is now called for in-process Python
+  simulators.
+
+- [FIX] `issue #27`_: Dramatically improved simulation performance (30 times as
+  fast in some cases) if simulators use different step sizes (e.g. 1 minute and
+  1 hour) by improving some internal data structures.
+
+.. _`issue #22`: https://bitbucket.org/mosaik/mosaik/issue/22/
+.. _`issue #23`: https://bitbucket.org/mosaik/mosaik/issue/23/
+.. _`issue #24`: https://bitbucket.org/mosaik/mosaik/issue/24/
+.. _`issue #26`: https://bitbucket.org/mosaik/mosaik/issue/26/
+.. _`issue #27`: https://bitbucket.org/mosaik/mosaik/issue/27/
+
+
+2.0 – 2014-09-22
+----------------
+
+- Mosaik 2 is a complete rewrite of mosaik 1 in order to improve its
+  maintainability and flexibility.
+
+- Removed features:
+
+  - The *mosl* DSL (including Eclipse xtext and Java) are now gone. Mosaik now
+    only uses Python.
+
+  - Mosaik now longer has executables but is now used as a library.
+
+  - The platform manager is gone.
+
+  - The database is now a separate package, see `mosaik-hdf5`__.
+
+  - The old web UI is gone.
+
+- Mosaik now consists of four core components with the following feature sets:
+
+  - mosaik Sim API
+
+    - The API has bean cleaned up and simplified.
+
+    - Simulators and control strategies share the same API.
+
+    - There are only four calls from mosaik to a simulator: *init*, *create*,
+      *step* and *get_data*.
+
+    - Simulators / processes can make asynchronous requests to mosaik during a
+      step: *get_progress*, *get_related_entities*, *get_data*, *set_data*.
+
+    - ZeroMQ with JSON is replaced by plain network sockets with JSON.
+
+  - Scenarios:
+
+    - Pure Python is now used to describe scenarios. This offers you more
+      flexibility to create complex scenarios.
+
+    - Scenario creation simplified: Start a simulator to get a model factory.
+      Use the factory to create model instances (*entities*). Connect entities.
+      Run simulation.
+
+    - Connection rules are are no based on a primitive *connect* function that
+      only connects two entities with each other. On top of that, any
+      connection strategy can be implemented.
+
+  - Simulation Manager:
+
+    - Simulators written in Python 3 can be executed *in process*.
+
+    - Simulators can be started as external processes.
+
+    - Mosaik can connect to an already running instance of a simulator. This
+      can be used as a replacement for the now gone platform manager.
+
+  - Simulation execution:
+
+    - The simulation is now event-based. No schedule and no synchronization
+      points need to be computed.
+
+    - Simulators can have different and varying step sizes.
+
+- Mosaik ecosystem:
+
+  - A high-level implementation of the mosaik 2 API currently exists for
+    Python__ and Java__.
+
+  - *mosaik-web* is a simple visualization for mosaik simulations. See
+    https://bitbucket.org/mosaik/mosaik-web.
+
+  - *mosaik-pypower* is an adapter for the *PYPOWER* load flow analysis
+    library. See https://bitbucket.org/mosaik/mosaik-pypower and
+    https://github.com/rwl/PYPOWER.
+
+  - *mosaik-csv* and *mosaik-householdsim* are simple demo simulators that you
+    can use to "simulate" CSV data sets and load-profile based households. See
+    https://bitbucket.org/mosaik/mosaik-csv and
+    https://bitbucket.org/mosaik/mosaik-householdsim.
+
+  - There is a repository containing a simple demo scenario for mosaik. See
+    https://bitbucket.org/mosaik/mosaik-demo.
+
+
+ You can find information about older versions on the `history page`__
+
+__ https://bitbucket.org/mosaik/mosaik-hdf5
+__ https://bitbucket.org/mosaik/mosaik-api-python
+__ https://bitbucket.org/mosaik/mosaik-api-java
+__ https://mosaik.readthedocs.org/en/latest/about/history.html
+
+
+Authors
+=======
+
+The original concepts for mosaik were developed by Steffen Schütte and Stefan
+Scherfke.
+
+The author of mosaik version 2 is Stefan Scherfke.
+
+Okko Nannen and Florian Schloegl joined the team in May / July 2014.
+André El-Ama joined the Team Juli / 2017
+
+

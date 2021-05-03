@@ -1,0 +1,3 @@
+[console_scripts]
+mosaik-web = mosaik_web.mosaik:main
+

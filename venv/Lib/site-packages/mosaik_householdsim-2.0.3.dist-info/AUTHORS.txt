@@ -1,0 +1,4 @@
+Authors
+=======
+
+The household simulator was created by Stefan Scherfke and Ontje Lünsdorf.

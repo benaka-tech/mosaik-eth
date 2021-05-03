@@ -1,0 +1,602 @@
+Metadata-Version: 2.1
+Name: mosaik-pypower
+Version: 0.7.3
+Summary: An adapter to use PYPOWER with mosaik.
+Home-page: https://gitlab.com/mosaik/mosaik-pypower
+Author: Stefan Scherfke
+Author-email: mosaik@offis.de
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Topic :: Scientific/Engineering
+Requires-Dist: PYPOWER (>=4.1)
+Requires-Dist: mosaik-api (>=2.0)
+Requires-Dist: numpy (>=1.6)
+Requires-Dist: scipy (<1.6,>=0.9)
+Requires-Dist: xlrd (<2,>=0.9.2)
+
+mosaik-pypower
+==============
+
+This package contains the Adapter to connect *PYPOWER* to *mosaik*.
+
+.. contents:: Table of Contents
+   :depth: 3
+
+
+Installation and starting
+-------------------------
+
+You can install mosaik-pypower via pip:
+
+.. code-block:: bash
+
+   $ pip install mosaik-pypower
+
+You can run the tests with:
+
+.. code-block:: bash
+
+    $ git clone https://gitlab.com/mosaik/mosaik-pypower.git
+    $ cd mosaik-pypower
+    $ pip install -r requirements.txt
+    $ py.test  # Run tests on current Python
+    $ tox      # Run tests on all supported Python versions
+
+You can either start mosaik-pypower as normal process or use it as a library.
+If you run it via the command line, you need to pass the adress that mosaik is
+listening on:
+
+.. code-block:: bash
+
+    $ mosaik-pypower HOST:PORT
+
+You can run ``mosaik-pypower --help`` to get more help.
+
+In order to use it as a library, you have to import the module
+``mosaik_pypower.mosaik`` and instantiate the class ``PyPower``:
+
+.. code-block:: python
+
+   >>> import mosaik_pypower.mosaik
+   >>> pp = mosaik_pyower.mosaik.PyPower()
+
+
+Input file format
+-----------------
+
+Mosaik-pypower uses, like PYPOWER, the bus-branch model to represent power
+grids.
+
+This model is fairly simple: You have a number of buses / nodes that are
+connected via branches / lines. Transformers are just a special kind of branch.
+Buses are divided into three sub-types: the reference bus (also known as swing
+or slack bus), PQ buses and PU buses.
+
+For PQ buses, the (re)active power *P* and *Q* are given, PYPOWER will
+calculate the voltage magnitude and angle for these nodes. PU buses provide
+active power and a constant voltage, thus PYPOWER computes the reactive power
+for these buses. Mosaik-pypower current *only supports PQ buses*, because they
+are more general and if you model your power grid for mosaik, you do not know
+in advance what kind of unit (consumer, producer, …) will be connected to
+a bus.
+
+Every grid needs to have *exactly one* reference bus. It has a constant voltage
+magnitude and angle (usually 1 p.u.  and 0°). PYPOWER computes the residual
+(re)active power for that node. Usually it is placed on the primary or
+secondary side of the grid's transformer station (or where it would be)::
+
+    With transformer       Without transformer
+
+          REF                      REF
+           |                        |
+           8                        |
+           |                       PQ0
+          PQ0                     /   \
+         /   \                   |     |
+        |     |                 PQ1   PQ2
+       PQ1   PQ2
+
+PYPOWER's original input format is relatively hard to read/write and also
+contains more information than we need to model power grids for the use with
+mosaik. For example, it contains loads and feed-in for each bus which we don't
+need here because mosaik will provide it from other simulators.
+
+Thus, mosaik-pypower provides simpler input file formats which it will convert
+to the format used by PYPOWER. Currently, it can read Excel (xlsx) and JSON
+files (in an old an a new variant).
+
+The Excel and new JSON formats are structured in a similar way. The difference
+of the old JSON format are larger. You can find example files in our `source
+code repository`__. Below, you’ll find a detailed description of them.
+
+__ https://gitlab.com/mosaik/mosaik-pypower/-/tree/master/tests/data/
+
+
+Excel
+^^^^^
+
+Excel files need to have the suffix ``*.xlsx`` and need to provide at least to
+sheets: one for buses and one for branches. They should usually be named
+*Nodes* and *Lines*, but you can also use any name you want (more on that
+later).
+
+In every sheet, the first row is reserved for headings. From row two, you list
+the buses and branches (one per row). If the first cell of a row starts with
+a ``#`` this row is treated as a comment.
+
+Bus sheet
+"""""""""
+
+The bus sheet contains at least three columns (you can use the other columns
+for comments):
+
+1. The bus name (string)
+2. The bus type (either ``REF`` or ``PQ``)
+3. The bus' base voltage (integer in kV line-to-line, e.g. ``400`` for
+   a European LV node).
+
+Example::
+
+   Node name  Node type  Base voltage [kV]  Notes
+   Grid       REF        110                Slack bus
+   # This is a comment
+   Bus0       PQ         20
+   Bus1       PQ         20
+   Bus2       PQ         20
+   Bus3       PQ         20
+
+There must be *exactly one* REF bus in the list and it must be first in the
+list.
+
+
+Branch sheet
+""""""""""""
+
+The branch sheet contains at least seven columns (again, you can use additional
+columns for notes):
+
+1. The branch name (string)
+2. One end of the branch (a valid bus name)
+3. The other end of the branch (a valid bus name)
+4. The transformer or line type (see `here`__ for a list of built-in types. You
+   can also `add your own`__)
+5. The branch length (float in km)
+6. A flag indicating whether the branch is online / active (``1``) or offline
+   / inactive (``0``)
+7. The default tap turn for a transformer (usually ``0``)
+
+__ https://gitlab.com/mosaik/mosaik-pypower/-/tree/master/mosaik_pypower/resource_db.py
+__ resource-db_
+
+Example::
+
+   Name    From  To    Type         Length [km]  Online  Tap
+   # Transformer
+   Trafo1  Grid  Bus0  TRAFO_40     1.0          1       0
+   # Lines
+   B_0     Bus0  Bus1  NA2XS2Y_185  5.0          1
+   B_1     Bus0  Bus2  NA2XS2Y_185  3.0          1
+   B_2     Bus1  Bus3  NA2XS2Y_185  2.0          1
+   B_3     Bus2  Bus3  NA2XS2Y_185  0.3          1
+
+
+.. _resource-db:
+
+Additional branch and transformer types
+"""""""""""""""""""""""""""""""""""""""
+
+You can add more line and transformer types via two additional sheets, *Line
+types* and *Transformer types* (you can give them other names if you want to).
+
+The headings should be pretty self-explanatory:
+
+Example line types::
+
+   Type name  R' [Ω/km]  X' [Ω/km]  C' [nF/km]  I_max [A]
+   SPAM_200   0.1337     0.0815     0           404
+
+Example transformer types::
+
+   Transformer Type  S_r [MVA]  I_max_prim [A]  I_max_sec [A]  P_loss [kW]  R [Ω]   X [Ω]  taps
+   TRAFO_23          23         100             800            100          0.0123  1.234  {-1: 0.9, 0: 1.0, 1: 1.1}
+
+
+JSON (new format)
+^^^^^^^^^^^^^^^^^
+
+The new JSON format (use ``*.json`` as a suffix) is very similar to the Excel
+format, but instead of separate sheets, its just different entries in a JSON
+object. There is one entry for the buses, one for branches and one for
+transformers. Each entry contains is a list of lists which are structured
+like the columns in the Excel format:
+
+.. code-block:: json
+
+   {
+       "bus": [
+           ["Grid", "REF", 110.0],
+           ["Bus0", "PQ",  20.0],
+           ["Bus1", "PQ",  20.0],
+           ["Bus2", "PQ",  20.0],
+           ["Bus3", "PQ",  20.0]
+       ],
+       "trafo": [
+           ["Trafo1", "Grid", "Bus0", "TRAFO_40", true, 0]
+       ],
+       "branch": [
+           ["B_0", "Bus0", "Bus1", "NA2XS2Y_185", 5.0, true],
+           ["B_1", "Bus0", "Bus2", "NA2XS2Y_185", 3.0, true],
+           ["B_2", "Bus1", "Bus3", "NA2XS2Y_185", 2.0, true],
+           ["B_3", "Bus2", "Bus3", "NA2XS2Y_185", 0.3, true]
+       ]
+   }
+
+There must be *exactly one* REF bus in the list and it must also be the first
+entry of the list.
+
+If you want to specify additional branch or transformer types, you can add
+``branch_types`` or ``trafo_types`` to the object. They are also structured
+similarly to the Excel file:
+
+.. code-block:: json
+
+   {
+      "bus": [
+         ["Grid", "REF", 110.0],
+         ["Bus0", "PQ",  20.0],
+         ["Bus1", "PQ",  20.0],
+      ],
+      "trafo": [
+         ["Trafo1", "Grid", "Bus0", "TRAFO_23", true, 0]
+      ],
+      "branch": [
+         ["B_0", "Bus0", "Bus1", "SPAM_200", 5.0, true]
+      ],
+      "branch_types": {
+         "SPAM_200": [0.1337, 0.0815, 0, 404]
+      },
+      "trafo_types": {
+         "TRAFO_23": [23, 100, 800, 100, 0.0123, 1.234, {"-1": 0.9, "0": 1, "1": 1.1}]
+      }
+   }
+
+
+JSON (old format)
+^^^^^^^^^^^^^^^^^
+
+The old JSON format (also with the ``*.json`` suffix) differs from the new
+format by explicitly listing the branch and transformer parameters for each
+branch and transformer. It must also have a ``base_mva`` entry which is used
+for the p.u. conversion. It can usually just be set to ``1``:
+
+::
+
+   {
+       "base_mva": <global_base_mva>,
+       "bus": [
+           ["<bus_id>", "REF|PQ", <base_kv>],
+       ...
+       ],
+       "trafo": [
+           ["<trafo_id>", "<from_bus_id>", "<to_bus_id>", <Sr_MVA>, <v1_%>,
+           <P1_MW>, <Imax_p_A>, <Imax_s_A>],
+       ...
+       ],
+       "branch": [
+           ["<branch_id>", "<from_bus_id>", "<to_bus_id>", <length_km>,
+            <R'_ohm/km>, <X'_ohm/km>, <C'_nF/km>, <I_max_A>],
+           ...
+       ]
+   }
+
+Again, there may only be one *REF* bus and it must be the first in the list
+
+
+Usage in mosaik
+---------------
+
+As pointed out above, you can run mosaik-pypower in-process or as
+a sub-process. Every instance of mosaik-pypower can handle multiple power grids
+at once. This is very handy for scenarios with a lot of separate grids. You can
+start one instance of mosaik-pypower for every CPU core of your machine and
+distribute all grids over these instance. More instances would mean more
+overhead, less instances would mean less parallelization.
+
+Instantiation and initialization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here is an example *sim config* for mosaik:
+
+.. code-block:: python
+
+   sim_config = {
+       'PyPower-inproc': {
+           'python': 'mosaik_pypower.mosaik:PyPower',
+       },
+       'PyPower-subproc': {
+           'cmd': 'mosaik-pypower %(addr)s',
+       },
+   }
+
+When you create an instance of mosaik-pypower, you can pass two parameters:
+
+- *step_size* is an integer in seconds (of simulation time) and defines how
+  often a power flow analysis should be performend.
+
+- *pos_load* is an optional boolean that lets you specify whether the active
+  power for loads is a positive or a negative number.
+
+  The default (``True``) is to use positive numbers for loads and negative
+  numbers for feed-in of active power.
+
+  If you want to use negative values for loads and positive for feed-in, set
+  this flag to ``False``.
+
+Examples:
+
+.. code-block:: python
+
+   # Power-flow every minute:
+   pp_a = world.start('PyPower', step_size=60)
+
+   # Power-flow every 15 minutes, negative values for active power of loads:
+   pp_b = world.start('PyPower', step_size=300, pos_loads=False)
+
+
+Models
+^^^^^^
+
+Mosaik-pypower provides the following models / entity types:
+
+**Grid**
+  **public:** True
+
+  **parameters:** *gridfile* [, *sheetnames*]
+
+  This model is used to instantiate a power-grid within mosaik-pypower from the
+  *gridfile* provided. The *Grid* instance will have child entities for every
+  element in that grid (buses, branches, …). You can access these entities
+  via the ``children`` attribute of the *Grid* entity. These entities also
+  contain information about how they are related to each other. This allows
+  mosaik to determine the grid topology. You can query it via
+  ``world.entity_graph[<full_entity_id>``.
+
+  If you use an Excel file and deviate from the default sheet names, you can
+  optionally pass a *sheetnames* argument which is a dict with the sheet names
+  to use.
+
+**RefBus** / **PQBus**
+  **public:** False
+
+  **attributes:** *P*, *Q*, *Vl*, *Vm*, *Va*
+
+  Every *Grid* will contain exactly one *RefBus* entity and at least one
+  *PQBus* entity.
+
+  *P* and *Q* are active / reactive power in [W] / [VAr].
+
+  *Vl* is the nominal voltage in [V] as defined in the grid file. *Vm* is the
+  current voltage magnitude in [V] and my deviate from *Vl*. *Va* is the voltage
+  angle in [°] (degree).
+
+**Branch**
+  **public:** False
+
+  **attributes:** *P_from*, *Q_from*, *P_to*, *Q_to*, *I_real*, *I_imag*,
+  *S_max*, *I_max*, *length*, *R_per_km*, *X_per_km*, *onine*
+
+  A grid consists of an arbitrary amount of branches connecting the *PQBus*
+  entities with each other.
+
+  The attributes *(P|Q)_(from|to)* denote the (re)active power on both ends of
+  the branch in [W] or [VAr]. *I_real* and *I_imag* are the complex current in
+  [A] flowing through the branch.
+
+  *S_max* and *I_max* denote the maximum acceptable apparent power (in [VA])
+  and current (in [A]) for that branch.
+
+  *lengh*, *R_per_km*, *X_per_km*, *C_per_km* and *online* are the respective
+  values for the branch from the input file.
+
+**Transformer**
+  **public:** False
+
+  **attributes:** *P_from*, *Q_from*, *P_to*, *Q_to*, *S_r*, *I_max_p*,
+  *I_max_s*, *P_loss*, *U_p*, *U_s*, *taps*, *tap_turn*.
+
+  A grid may have an arbitrary number of transformers (zero, one or more).
+  Since it is just a special kind of *Branch* it shares many attributes with
+  it.
+
+  The attributes *(P|Q)_(from|to)* denote the (re)active power on both ends of
+  the branch in [W] or [VAr]. *I_real* and *I_imag* are the complex current in
+  [A] flowing through the branch.
+
+  *S_r* is the rated apparent power (in [VA]) of the transformer. *I_max_p* and
+  *I_max_s* are the maximum currents in [A] for the primary and secondary side
+  of the transformer. *P_loss* is the transformer's nominal power loss in [W].
+
+  *U_p* and *U_s* are the nominal primary and secondary line-to-line voltages
+  in [V].
+
+  *taps* is a dictionary of the available tap turns of the transformer.
+  *tap_turn* is the currently active tap turn.
+
+
+Examples for model instantiation and connection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here are some examples on how to instantiate a power grid and work with the
+entities that you get in return.
+
+Basic examples:
+
+.. code-block:: python
+
+   pp = world.start('PyPower', step_size=60)
+
+   # Create a grid from a JSON file:
+   grid = pp.Grid(gridfile='path/to/grid.json')
+
+   # Get a list of RefBus, PQBus, Transformer and Branch entities:
+   grid = grid.children
+
+   # Create some PV entities and randomly connect them to a PQBus:
+   pvs = make_pvs(...)  # Returns a list of PV entities
+   pq_buses = [e for e in grid if e.type == 'PQBus']
+   mosaik.util.connect_randomly(world, pvs, pq_buses, ('P_out', 'P'), ('Q_out', 'Q'))
+
+
+Advanced stuff:
+
+.. code-block:: python
+
+   pp = world.start('PyPower', step_size=60)
+
+   # Create a grid from an Excel file and overwrite default sheet names.
+   # Directly grab the list of child entities
+   grid = pp.Grid(gridfile='path/to/grid.xlsx', sheetnames={
+       'bus': 'Nodes',
+       'branch': 'Lines',
+       'branch_types': 'Line types',
+       'trafo_types': 'Transformer types',
+   }).children
+
+   # Get the RefBus
+   ref_bus = [e for e in grid if e.type == 'RefBus']
+
+   # Get all nodes starting with "ConnectionPoint_". Note that every entity ID
+   # is prefixed with a grid index (e.g., "1-"). We can use regular expressions
+   # to handle this:
+   import re
+   regex_cn = re.compile(r'\d+-ConnectionPoint_.*')
+   conpoints = [e for e in grid if regex_cn.match(e.eid)]
+
+   # Create a dictionary mapping node names to the respective entities. Again,
+   # we have to strip the grid index:
+   conpoints = {e.eid.split('-', 1)[1]: n
+                for n in grid if regex_cn.match(n.eid)}
+
+   # Connected loads to defined connection points:
+   houses = create_houses(...)  # Returns a list of (house, node-id) tuples
+   for house, node_id in houses:
+       mosaik.connect(house, conpoints[house_id], ('P_out', 'P'), ('Q_out', 'Q'))
+
+   # Get "secondary side" buses of all transformers
+   trafo_nodes = []
+   # 1. Get all transformers:
+   trafos = [e for e in grid if e.type == 'Transformer']
+   # 2. Group PQBuses by full ID for easier access:
+   nodes = {e.full_id: e for e in grid if e.type == 'PQBus'}
+   # 3. Iterate transformer relations (assuming that they are connected to the
+   #    RefBus on their primary side):
+   for trafo in trafos:
+      rels = world.entity_graph[trafo.full_id]
+      assert len(rels) == 2
+      for rel in rels:
+            if rel in nodes:
+               trafo_nodes.append(nodes[rel])
+               break
+      else:
+            raise ValueError('No PQBus found at trafo.')
+
+
+Getting help
+------------
+
+If you need, please visit either the `mosaik-users mailing list`__ (or the
+`PYPOWER Google group`__ if your issue is very PYPOWER specific).
+
+__ https://mosaik.offis.de/mailinglist
+__ https://groups.google.com/forum/#!forum/pypower
+
+
+Changelog
+=========
+
+0.7.3 - 2021-03-04
+------------------
+
+- [BUGFIX] Require version <1.6.0 of scipy and <2.0 of xlrd, because newer versions are incompatible
+- [BUGFIX] Set I_real and I_imag in case of failure of power flow
+
+
+0.7.2 – 2017-07-19
+------------------
+
+- [BUGFIX] --> Issue #5: https://bitbucket.org/mosaik/mosaik-pypower/issues/5
+- [BUGFIX] --> Issue #6: https://bitbucket.org/mosaik/mosaik-pypower/issues/6
+- [LIB-UPDATE] --> scipy update from version 0.17.0 to version 0.19.1
+
+
+0.7.1 – 2016-02-15
+------------------
+
+- [FIX] Fixed a typo in model.py.  "Tap" can now be read from Excel files.
+
+
+0.7 – 2014-10-28
+----------------
+
+- [NEW] Added ability to extend the built-in branch/transformer database
+  (`issue #2`_).
+- [NEW] Wrote a lot new documentation (`issue #3`_)
+
+.. _`issue #2`: https://bitbucket.org/mosaik/mosaik-pypower/issue/2/
+.. _`issue #3`: https://bitbucket.org/mosaik/mosaik-pypower/issue/3/
+
+
+0.6.3 – 2014-09-22
+------------------
+
+- [CHANGE] Updated to mosaik-api 2.0.
+
+
+0.6.2 – 2014-07-31
+------------------
+
+- [CHANGE] Cache xlsx files to improve performance
+- [CHANGE] Updated to mosaik-api 2.0a4.
+
+
+0.6.1 – 2014-06-30
+------------------
+
+- [NEW] Added *I_max_p* [A] and *I_max_s* [A] to the transformer data.
+
+
+0.6 – 2014-06-26
+----------------
+
+- [NEW] Can import grids from Excel files (xlsx)
+- [NEW] New import format for JSON files (the old format is still supported)
+- [CHANGE] Massive internal refactoring.
+- [CHANGE] Updated to mosaik-api 2.0a3.
+
+
+0.5 – 2014-03-26
+----------------
+
+- Initial release
+
+
+Authors
+=======
+
+The mosaik-pypower is developed by Stefan Scherfke.
+André El-Ama joined the team in July 2017.
+
+
+

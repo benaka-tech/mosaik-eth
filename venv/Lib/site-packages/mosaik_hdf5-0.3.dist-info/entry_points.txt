@@ -1,0 +1,3 @@
+[console_scripts]
+mosaik-hdf5 = mosaik_hdf5:main
+

@@ -1,0 +1,117 @@
+Metadata-Version: 2.1
+Name: mosaik-csv
+Version: 1.1.0
+Summary: Presents CSV datasets to mosaik as models.
+Home-page: https://gitlab.com/mosaik/mosaik-csv
+Author: Stefan Scherfke
+Author-email: mosaik@offis.de
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Topic :: Scientific/Engineering
+Requires-Dist: arrow (>=1.0.0)
+Requires-Dist: mosaik-api (>=2.0)
+
+mosaik-csv
+==========
+
+This is pseudo simulator that presents CSV data sets to mosaik as models.
+
+The following code shows an example how to use the mosaik-csv simulator.
+The date_format and delimiter parameter are optional.
+If they are not defined the standard value is 'YYYY-MM-DD HH:mm:ss' for the date_format and ',' for delimiter.
+
+    $ sim_config = {
+    $     'CSV': {
+    $         'python': 'mosaik_csv:CSV',
+    $     }
+    $ }
+    $ world = mosaik.World(sim_config)
+    $ csv_sim = world.start('CSV', sim_start='01.01.2016 00:00',
+    $                             datafile='data.csv',
+    $                             date_format='DD.MM.YYYY HH:mm',
+    $                             delimiter=',')
+    $ csv = csv_sim.CSV.create(20)
+
+Installation
+------------
+
+::
+
+    $ pip install mosaik-csv
+
+Tests
+-----
+
+You can run the tests with::
+
+    $ git clone https://gitlab.com/mosaik/mosaik-csv.git
+    $ cd mosaik-csv
+    $ pip install -r requirements.txt
+    $ pip install -e .
+    $ py.test
+    $ tox
+
+If installation of psutil fails, installing python developer edition and gcc should help::
+
+    $ sudo apt-get install gcc python3-dev
+
+
+Changelog
+=========
+
+1.1.0 - 2021-03-11
+------------------
+
+- [FEATURE] Allow to define the delimiter.
+- [FEATURE] Allow to define the date format.
+
+
+1.0.4 - 2021-03-04
+------------------
+
+- [CHANGE] Adjustment to new arrow API.
+
+
+1.0.3 – 2019-10-10
+------------------
+
+- [CHANGE] Added closing of input file.
+- [CHANGE] Adjustment to new arrow API.
+
+
+1.0.2 – 2014-09-22
+------------------
+
+- [CHANGE] Updated to mosaik-api 2.0.
+
+
+1.0.1 – 2014-06-23
+------------------
+
+- [CHANGE] Updated to mosaik-api 2.0a3.
+
+
+1.0 – 2014-03-26
+----------------
+
+- Initial release
+
+
+Authors
+=======
+
+The mosaik CSV reader was created by Stefan Scherfke.
+
+

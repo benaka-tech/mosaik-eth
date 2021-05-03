@@ -1,0 +1,4 @@
+[console_scripts]
+pyexamplemas = example_mas.mosaik:main
+pyexamplesim = example_sim.mosaik:main
+
